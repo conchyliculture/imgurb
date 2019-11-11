@@ -8,41 +8,30 @@ require 'json'
 require 'sinatra'
 require 'slim'
 
+require_relative '../lib.rb'
+
 $config_file = 'config.json'
 
-def dohash(pwd)
-  hex = pwd.strip()
-  0.upto(1000) {
-    hex = Digest::SHA2.hexdigest(hex) 
-  }
-  return hex
-end
-
-if File.exist?($config_file)
-  $settings = JSON.load(File.read($config_file))
-else
-  $settings = {
+$settings = load_config(
+  $config_file,
+  {
+    'my_url' => 'http://localhost:4567',
     'secret' => '',
     'pics_dir' => 'pics'
   }
-end
+)
 
 if $settings['secret'] == ''
-  puts "Setting password:"
-  pwd = gets().strip()
-  $settings['secret'] = dohash(pwd)
+  $settings['secret'] = get_password()
+  save_config($config_file, $settings)
+end
 
-  File.open($config_file, 'w') do |f|
-    f.write($settings.to_json())
-  end
+if not File.directory?($settings['pics_dir'])
+  Dir.mkdir($settings['pics_dir'])
 end
 
 def check(pwd)
   return dohash(pwd) == $settings['secret']
-end
-
-def rndstr(length)
-  rand(36**length).to_s(36)
 end
 
 def json_msg(msg)
@@ -68,8 +57,8 @@ def gen_filename(f)
   dest = base
   begin
     dest = Digest::MD5.hexdigest(dest)[7..14]
-  end while File.exist?(File.join($settings['pics_dir'], dest+'.'+ext))
-  return dest+'.'+ext
+  end while File.exist?(File.join($settings['pics_dir'], dest+ext))
+  return dest+ext
 end
 
 get '/' do
@@ -78,18 +67,24 @@ end
 
 get '/p/:pic' do
   if not params[:pic]
-    status 404
+    halt 404
   end
   path = File.join($settings['pics_dir'], params[:pic])
   if File.exist?(path)
     send_file(path)
   else
-    status 404
+    halt 404
   end
 end
 
 post '/upload' do
-  pp params
+  if params[:secret]
+    if params[:secret] != $settings['secret']
+      halt 403, 'bad password'
+    end
+  else
+    halt 403, 'bad password'
+  end
   if params[:file]
     filename = params[:file][:filename]
     file = params[:file][:tempfile]
@@ -98,7 +93,7 @@ post '/upload' do
     File.open(File.join($settings['pics_dir'], dest_file), 'wb') do |f|
       f.write file.read
     end
-    json_msg dest_file 
+    json_msg $settings['my_url'] + '/' + dest_file
   else
     json_error 'You have to choose a file'
   end
