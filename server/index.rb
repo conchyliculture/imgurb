@@ -6,7 +6,6 @@ Encoding.default_external = Encoding::UTF_8
 require 'digest'
 require 'json'
 require 'sinatra'
-require 'slim'
 
 require_relative '../lib.rb'
 
@@ -59,10 +58,6 @@ def gen_filename(f)
     dest = Digest::MD5.hexdigest(dest)[7..14]
   end while File.exist?(File.join($settings['pics_dir'], dest+ext))
   return dest+ext
-end
-
-get '/' do
-	slim :index
 end
 
 get '/p/:pic' do
