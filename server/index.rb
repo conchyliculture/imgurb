@@ -7,9 +7,28 @@ require 'digest'
 require 'json'
 require 'sinatra'
 
-require_relative '../lib.rb'
 
 $config_file = 'config.json'
+
+def load_config(path, default={})
+  config = default
+  if File.exist?(path)
+    config = JSON.load(File.read(path))
+  end
+  return config
+end
+
+def save_config(path, data)
+  File.open(path, 'w') do |f|
+    f.write(data.to_json())
+  end
+end
+
+def get_password()
+  puts "Setting password:"
+  pwd = gets().strip()
+  return dohash(pwd)
+end
 
 $settings = load_config(
   $config_file,
@@ -28,6 +47,15 @@ end
 if not File.directory?($settings['pics_dir'])
   Dir.mkdir($settings['pics_dir'])
 end
+
+def dohash(pwd)
+  hex = pwd.strip()
+  0.upto(1000) {
+    hex = Digest::SHA2.hexdigest(hex)
+  }
+  return hex
+end
+
 
 def check(pwd)
   return dohash(pwd) == $settings['secret']
