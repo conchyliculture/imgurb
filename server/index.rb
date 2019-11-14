@@ -111,7 +111,7 @@ post '/upload' do
     File.open(File.join($settings['pics_dir'], dest_file), 'wb') do |f|
       f.write file.read
     end
-    json_msg $settings['my_url'] + '/' + dest_file
+    json_msg $settings['my_url'] + '/p/' + dest_file
   else
     json_error 'You have to choose a file'
   end
