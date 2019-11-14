@@ -61,7 +61,13 @@ You can also set the default delay before taking a screenshot here.
 Then run again:
 ```
 $ ruby client/push.rb
+sleeping 1s
 Running import /tmp/imgurb-screenshot20191114-19016-11l4n0j.jpg
 https://localhost:4567/p/2242eeab.jpg
 ```
 You screenshot is available at that last URL
+
+Make the client wait for more than 1 second before taking a screenshot:
+```
+$ ruby client/push.rb 5
+```
