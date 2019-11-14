@@ -1,24 +1,39 @@
 #!/usr/bin/ruby
 # encoding: utf-8
 
+require 'digest'
+require 'json'
 require 'net/http'
 require 'tmpdir'
 
-require_relative '../lib.rb'
+$config_file = File.join(File.expand_path(File.dirname(__FILE__)), 'config.json')
 
-$config_file = 'config.json'
+def load_config(path, default={})
+  config = default
+  if File.exist?(path)
+    config = JSON.load(File.read(path))
+  end
+  return config
+end
 
-$settings = load_config(
-  $config_file,
-  {
-    'upload_url' => 'http://localhost:4567/upload',
-    'secret' => '',
+def save_config(path, data)
+  File.open(path, 'w') do |f|
+    f.write(data.to_json())
+  end
+end
+
+def dohash(pwd)
+  hex = pwd.strip()
+  0.upto(1000) {
+    hex = Digest::SHA2.hexdigest(hex)
   }
-)
+  return hex
+end
 
-if $settings['secret'] == ''
-  $settings['secret'] = get_password()
-  save_config($config_file, $settings)
+def get_password()
+  puts "Setting password:"
+  pwd = gets().strip()
+  return dohash(pwd)
 end
 
 def do_snip(dest_file)
@@ -70,6 +85,20 @@ def upload_path(file)
   else
     raise "Error connecting to #{uri}"
   end
+end
+
+$settings = load_config(
+  $config_file,
+  {
+    'upload_url' => 'http://localhost:4567/upload',
+    'secret' => '',
+  }
+)
+
+if $settings['secret'] == ''
+  $settings['secret'] = get_password()
+  save_config($config_file, $settings)
+  exit
 end
 
 Dir::Tmpname.create('imgurb-screenshot') { |path|

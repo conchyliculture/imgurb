@@ -7,7 +7,7 @@ require 'digest'
 require 'json'
 require 'sinatra'
 
-$config_file = 'config.json'
+$config_file = File.join(File.expand_path(File.dirname(__FILE__)), 'config.json')
 
 def dohash(pwd)
   hex = pwd.strip()
@@ -76,6 +76,7 @@ $settings = load_config(
 if $settings['secret'] == ''
   $settings['secret'] = get_password()
   save_config($config_file, $settings)
+  exit
 end
 
 if not File.directory?($settings['pics_dir'])
