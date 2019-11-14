@@ -7,8 +7,15 @@ require 'digest'
 require 'json'
 require 'sinatra'
 
-
 $config_file = 'config.json'
+
+def dohash(pwd)
+  hex = pwd.strip()
+  0.upto(1000) {
+    hex = Digest::SHA2.hexdigest(hex)
+  }
+  return hex
+end
 
 def load_config(path, default={})
   config = default
@@ -28,37 +35,6 @@ def get_password()
   puts "Setting password:"
   pwd = gets().strip()
   return dohash(pwd)
-end
-
-$settings = load_config(
-  $config_file,
-  {
-    'my_url' => 'http://localhost:4567',
-    'secret' => '',
-    'pics_dir' => 'pics'
-  }
-)
-
-if $settings['secret'] == ''
-  $settings['secret'] = get_password()
-  save_config($config_file, $settings)
-end
-
-if not File.directory?($settings['pics_dir'])
-  Dir.mkdir($settings['pics_dir'])
-end
-
-def dohash(pwd)
-  hex = pwd.strip()
-  0.upto(1000) {
-    hex = Digest::SHA2.hexdigest(hex)
-  }
-  return hex
-end
-
-
-def check(pwd)
-  return dohash(pwd) == $settings['secret']
 end
 
 def json_msg(msg)
@@ -87,6 +63,25 @@ def gen_filename(f)
   end while File.exist?(File.join($settings['pics_dir'], dest+ext))
   return dest+ext
 end
+
+$settings = load_config(
+  $config_file,
+  {
+    'my_url' => 'http://localhost:4567',
+    'secret' => '',
+    'pics_dir' => 'pics'
+  }
+)
+
+if $settings['secret'] == ''
+  $settings['secret'] = get_password()
+  save_config($config_file, $settings)
+end
+
+if not File.directory?($settings['pics_dir'])
+  Dir.mkdir($settings['pics_dir'])
+end
+
 
 get '/p/:pic' do
   if not params[:pic]
