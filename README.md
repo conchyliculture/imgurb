@@ -14,23 +14,7 @@ Taking screenshots is done using either `import` from `imagemagick` package, or 
 
 The server requires you install [Sinatra](http://sinatrarb.com/).
 
-## Client
-
-Start the client & update the config.json file.
-
-```
-$ ruby client/push.rb
-Setting password:
-bad_password
-```
-
-Change value for `upload_url`:
-```
-$ cat client/config.json
-{"upload_url":"http://localhost:4567/upload","secret":"ad96002c8fe486a6ba924379e46d3b5b7a78bd80ddb56c935e823b0b33bca1d3"}
-```
-
-## Server
+### Server
 
 Start the server & update the config.json file.
 
@@ -55,3 +39,29 @@ $ ruby server/index.rb
 [2019-11-14 12:58:24] INFO  WEBrick::HTTPServer#start: pid=18658 port=4567
 ```
 
+
+### Client
+
+Start the client & update the config.json file.
+
+```
+$ ruby client/push.rb
+Setting password:
+bad_password
+```
+
+Change value for `upload_url`:
+```
+$ cat client/config.json
+{"upload_url":"http://localhost:4567/upload","secret":"ad96002c8fe486a6ba924379e46d3b5b7a78bd80ddb56c935e823b0b33bca1d3","delay":1}
+```
+
+You can also set the default delay before taking a screenshot here.
+
+Then run again:
+```
+$ ruby client/push.rb
+Running import /tmp/imgurb-screenshot20191114-19016-11l4n0j.jpg
+https://localhost:4567/p/2242eeab.jpg
+```
+You screenshot is available at that last URL

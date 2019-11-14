@@ -92,6 +92,7 @@ $settings = load_config(
   {
     'upload_url' => 'http://localhost:4567/upload',
     'secret' => '',
+    'delay' => 1
   }
 )
 
@@ -100,6 +101,15 @@ if $settings['secret'] == ''
   save_config($config_file, $settings)
   exit
 end
+
+delay = $settings['delay']
+
+if ARGV[0] =~ /^(\d+)$/
+  delay = $1.to_i
+end
+
+puts "sleeping #{delay}s"
+sleep(delay)
 
 Dir::Tmpname.create('imgurb-screenshot') { |path|
   tempfile = path+'.jpg'
