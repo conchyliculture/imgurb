@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">PostSharer</string>
+    <string name="prompt_url">Remote ImguRB URL</string>
+    <string name="prompt_secret">Secret</string>
+    <string name="action_sign_in">Check for access</string>
+    <string name="action_sign_in_short">Check for access</string>
+    <string name="error_invalid_url">This URL address is invalid</string>
+    <string name="error_invalid_secret">Got error 403 Forbidden, check your secret</string>
+    <string name="error_field_required">This field is required</string>
+</resources>
