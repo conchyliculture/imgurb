@@ -2,12 +2,12 @@ package eu.prout.postsharer;
 
 public class ImgurbUploaderResult {
 
-    Status status;
-    String message;
+    final Status status;
+    final String message;
     String result_url;
 
     public enum Status {
-        STATUS_OK, STATUS_ERROR_BAD_URL, STATUS_ERROR_BAD_SECRET, STATUS_ERROR_NO_INTERNET, STATUS_ERROR_DIDNT_RUN, STATUS_ERROR_UNKNOWN
+        STATUS_OK, STATUS_ERROR_BAD_URL, STATUS_ERROR_BAD_SECRET, STATUS_ERROR_DIDNT_RUN, STATUS_ERROR_UNKNOWN
     }
 
     public String toString() {

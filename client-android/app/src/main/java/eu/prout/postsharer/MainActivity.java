@@ -2,8 +2,10 @@ package eu.prout.postsharer;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -32,15 +34,26 @@ public class MainActivity extends AppCompatActivity {
     private EditText secretView;
     private View mProgressView;
     private View mUploadCheckView;
-    private ImgurbUploader imgurbUploader;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
-        urlView = findViewById(R.id.url);
+        setContentView(R.layout.main_activity);
 
-        secretView = findViewById(R.id.secret);
+        SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences(getString(R.string.my_app_preferences), Context.MODE_PRIVATE);
+        String savedUrl = sharedPreferences.getString(getString(R.string.remote_url_pref), "");
+        urlView = findViewById(R.id.url_view);
+        urlView.setText((savedUrl));
+        urlView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+                return false;
+            }
+        });
+
+
+        String savedSecret = sharedPreferences.getString(getString(R.string.secret_pref), "");
+        secretView = findViewById(R.id.secret_view);
         secretView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
@@ -51,8 +64,9 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         });
+        secretView.setText(savedSecret);
 
-        Button urlCheckButton = (Button) findViewById(R.id.url_check_button);
+        Button urlCheckButton = findViewById(R.id.url_check_button);
         urlCheckButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -66,10 +80,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void attemptConnection() {
-        if (imgurbUploader == null) {
-            imgurbUploader = new ImgurbUploader("nope", "https://nope");
-        }
-
         if (connectionTask != null) {
             return;
         }
@@ -78,8 +88,7 @@ public class MainActivity extends AppCompatActivity {
         urlView.setError(null);
         secretView.setError(null);
 
-        // Store values at the time of the login attempt.
-        String url = urlView.getText().toString();
+        String remoteUrl = urlView.getText().toString();
         String secret = secretView.getText().toString();
 
         boolean cancel = false;
@@ -87,13 +96,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Check for a valid password, if the user entered one.
         if (TextUtils.isEmpty(secret)) {
-            secretView.setError(getString(R.string.error_invalid_secret));
+            secretView.setError(getString(R.string.error_field_required));
             focusView = secretView;
             cancel = true;
         }
 
         // Check for a valid email address.
-        if (TextUtils.isEmpty(url)) {
+        if (TextUtils.isEmpty(remoteUrl)) {
             urlView.setError(getString(R.string.error_field_required));
             focusView = urlView;
             cancel = true;
@@ -107,67 +116,52 @@ public class MainActivity extends AppCompatActivity {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            connectionTask = new CheckConnectionTask(url, secret);
+            connectionTask = new CheckConnectionTask(remoteUrl, secret);
             connectionTask.execute((Void) null);
         }
     }
 
-
-    /**
-     * Shows the progress UI and hides the login form.
-     */
     @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
     private void showProgress(final boolean show) {
         // On Honeycomb MR2 we have the ViewPropertyAnimator APIs, which allow
         // for very easy animations. If available, use these APIs to fade-in
         // the progress spinner.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
-            int shortAnimTime = getResources().getInteger(android.R.integer.config_shortAnimTime);
+        int shortAnimTime = getResources().getInteger(android.R.integer.config_shortAnimTime);
 
-            mUploadCheckView.setVisibility(show ? View.GONE : View.VISIBLE);
-            mUploadCheckView.animate().setDuration(shortAnimTime).alpha(
-                    show ? 0 : 1).setListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    mUploadCheckView.setVisibility(show ? View.GONE : View.VISIBLE);
-                }
-            });
+        mUploadCheckView.setVisibility(show ? View.GONE : View.VISIBLE);
+        mUploadCheckView.animate().setDuration(shortAnimTime).alpha(
+                show ? 0 : 1).setListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mUploadCheckView.setVisibility(show ? View.GONE : View.VISIBLE);
+            }
+        });
 
-            mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-            mProgressView.animate().setDuration(shortAnimTime).alpha(
-                    show ? 1 : 0).setListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-                }
-            });
-        } else {
-            // The ViewPropertyAnimator APIs are not available, so simply show
-            // and hide the relevant UI components.
-            mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-            mUploadCheckView.setVisibility(show ? View.GONE : View.VISIBLE);
-        }
+        mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
+        mProgressView.animate().setDuration(shortAnimTime).alpha(
+                show ? 1 : 0).setListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
+            }
+        });
     }
 
-    public class CheckConnectionTask extends AsyncTask<Void, Void, Boolean> {
+    @SuppressLint("StaticFieldLeak")
+    class CheckConnectionTask extends AsyncTask<Void, Void, Boolean> {
 
-        private final String mUrl;
-        private final String mSecret;
         private ImgurbUploaderResult status = new ImgurbUploaderResult();
+        private final ImgurbUploader uploadChecker;
 
         CheckConnectionTask(String url, String secret) {
-            this.mUrl = url;
-            this.mSecret = secret;
+            this.uploadChecker = new ImgurbUploader(url, secret);
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
             try {
-                this.status = imgurbUploader.testConnection();
-                if (status.status != ImgurbUploaderResult.Status.STATUS_OK) {
-                    return false;
-                }
-                return true;
+                this.status = uploadChecker.testConnection();
+                return status.status == ImgurbUploaderResult.Status.STATUS_OK;
             } catch (IOException | java.lang.IllegalArgumentException e) {
                 e.printStackTrace();
                 this.status = new ImgurbUploaderResult(e.getMessage());
@@ -176,15 +170,25 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
 
-        protected void toast(ImgurbUploaderResult result) {
+        void toast(ImgurbUploaderResult result) {
 
             Context context = getApplicationContext();
             CharSequence text = "It works!";
             int duration = Toast.LENGTH_SHORT;
 
+            SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(getString(R.string.my_app_preferences), Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = sharedPref.edit();
+            String newUrl = urlView.getText().toString();
+            String newSecret = secretView.getText().toString();
+            editor.putString(getString(R.string.remote_url_pref), newUrl);
+            editor.putString(getString(R.string.secret_pref), newSecret);
+            Log.d(TAG, "saved " + newUrl);
+            editor.apply();
+
             if (this.status.status != ImgurbUploaderResult.Status.STATUS_OK) {
                 duration = Toast.LENGTH_LONG;
                 text = result.message;
+                secretView.setError(getString(R.string.error_bad_secret));
             }
             Toast toast = Toast.makeText(context, text, duration);
             toast.show();
