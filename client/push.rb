@@ -87,6 +87,18 @@ def upload_path(file)
   end
 end
 
+def take_screenshot(delay)
+  puts "sleeping #{delay}s"
+  sleep(delay)
+
+  Dir::Tmpname.create('imgurb-screenshot') { |path|
+    tempfile = path+'.jpg'
+    do_snip(tempfile)
+    dest_url = upload_path(tempfile)
+    puts dest_url
+  }
+end
+
 $settings = load_config(
   $config_file,
   {
@@ -108,12 +120,9 @@ if ARGV[0] =~ /^(\d+)$/
   delay = $1.to_i
 end
 
-puts "sleeping #{delay}s"
-sleep(delay)
-
-Dir::Tmpname.create('imgurb-screenshot') { |path|
-  tempfile = path+'.jpg'
-  do_snip(tempfile)
-  dest_url = upload_path(tempfile)
-  puts dest_url
-}
+if ARGV[0] and File.exist?(ARGV[0])
+    dest_url = upload_path(ARGV[0])
+    puts dest_url
+else
+  take_screenshot(delay)
+end
