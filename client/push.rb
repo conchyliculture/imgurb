@@ -42,8 +42,8 @@ def do_snip(dest_file)
     cmd = $settings['snip_cmd']
   else
     [
+      ['maim', '-f', 'jpg', '-s' , dest_file],
       ['import', dest_file],
-      ['maim', '-f', 'jpg', '-s' , dest_file]
     ].each do |c|
       if `which "#{c[0]}"` != ''
         cmd = c
