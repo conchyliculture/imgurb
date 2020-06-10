@@ -117,3 +117,7 @@ post '/upload' do
     json_error 'You have to choose a file'
   end
 end
+
+get '/*' do
+  halt 404
+end
