@@ -41,7 +41,7 @@ def do_snip(dest_file)
 
   cmd = nil
   if File.exist?("/mnt/c/Windows/System32")
-    cmd = ["powershell.exe", File.join(File.dirname(__FILE__).gsub('/mnt/c', 'C:/'), "client-wsl", "snip.ps1"), dest_file]
+    cmd = ["powershell.exe", File.join(File.dirname(__FILE__).gsub('/mnt/c', 'C:/'), "..", "client-wsl", "snip.ps1"), dest_file]
   else
     if $settings['snip_cmd']
       cmd = $settings['snip_cmd']
