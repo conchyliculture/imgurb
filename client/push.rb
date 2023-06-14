@@ -44,27 +44,29 @@ def do_snip(dest_file)
     if $settings['snip_cmd']
       cmd = $settings['snip_cmd']
     else
-    case ENV["XDG_SESSION_TYPE"]
-    when "wayland"
-      [
-        ['gnome-screenshot', '-a', '-f', dest_file]
-      ].each do |c|
-        if `which "#{c[0]}"` != ''
-          cmd = c
-          break
+      case ENV["XDG_SESSION_TYPE"]
+      when "wayland"
+        [
+          ['gnome-screenshot', '-a', '-f', dest_file]
+        ].each do |c|
+          if `which "#{c[0]}"` != ''
+            cmd = c
+            break
+          end
         end
-      end
-      [
-        ['maim', '-f', 'jpg', '-s' , dest_file],
-        ['import', dest_file],
-      ].each do |c|
-        if `which "#{c[0]}"` != ''
-          cmd = c
-          break
+      else
+        [
+          ['maim', '-f', 'jpg', '-s' , dest_file],
+          ['import', dest_file],
+        ].each do |c|
+          if `which "#{c[0]}"` != ''
+            cmd = c
+            break
+          end
         end
-      end
-    end
-  end
+      end #wayland?
+    end # snip_cmd
+  end #win
 
   if cmd
     puts "Running #{cmd.join(' ')}"
