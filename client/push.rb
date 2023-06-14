@@ -38,9 +38,12 @@ end
 
 def do_snip(dest_file)
   cmd = nil
-  if $settings['snip_cmd']
-    cmd = $settings['snip_cmd']
+  if File.exist?("/mnt/c/Windows/System32")
+    cmd = ["powershell.exe", File.join(File.dirname(__FILE__).gsub('/mnt/c', 'C:/'), "..", "client-wsl", "snip.ps1"), dest_file]
   else
+    if $settings['snip_cmd']
+      cmd = $settings['snip_cmd']
+    else
     case ENV["XDG_SESSION_TYPE"]
     when "wayland"
       [
@@ -51,7 +54,6 @@ def do_snip(dest_file)
           break
         end
       end
-    else
       [
         ['maim', '-f', 'jpg', '-s' , dest_file],
         ['import', dest_file],
@@ -63,6 +65,7 @@ def do_snip(dest_file)
       end
     end
   end
+
   if cmd
     puts "Running #{cmd.join(' ')}"
     return system(*cmd)
