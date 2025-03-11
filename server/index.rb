@@ -117,6 +117,6 @@ post '/upload' do
   end
 end
 
-get '/*' do
+get '*' do
   halt 404
 end
