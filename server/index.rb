@@ -68,7 +68,6 @@ CONFIG_DEFAULTS = {
 }.freeze
 
 configure do
-  puts "ran config"
   config_file = File.join(File.expand_path(__dir__), 'config.json')
   options = load_config(config_file, CONFIG_DEFAULTS)
   if options['secret'] == ''
@@ -79,7 +78,6 @@ configure do
   end
 
   Dir.mkdir(options['pics_dir']) unless File.directory?(options['pics_dir'])
-  pp options
 
   set :options, options
 end
