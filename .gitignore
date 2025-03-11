@@ -1,4 +1,5 @@
 config.json
+server/pics/*
 /client-android/*.iml
 /client-android/app/*.iml
 /client-android/.gradle
