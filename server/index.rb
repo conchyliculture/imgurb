@@ -21,7 +21,7 @@ helpers do
     session[:logged_in] == true
   end
 
-  def protected!(redir)
+  def protected!(redir=nil)
     redirect "#{settings.options['my_url']}/login?redir=#{redir}" unless logged_in?
   end
 end
@@ -197,7 +197,7 @@ post '/login' do
   else
     # Incorrect password
     session[:error] = "Invalid password. Please try again."
-    redirect "#{settings.options['my_url']}/login"
+    redirect "#{settings.options['my_url']}/login?redir=#{redirect_to}"
   end
 end
 
