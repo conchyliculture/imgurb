@@ -10,8 +10,19 @@ require 'securerandom'
 require 'sinatra'
 require 'slim'
 
+session_secret = ENV['SESSION_SECRET']
+unless session_secret
+  secret_file = 'session_secret'
+  if File.exist?(secret_file)
+    session_secret = File.read(secret_file).strip()
+  else
+    session_secret = SecureRandom.alphanumeric(100)
+    File.open(secret_file, 'w').write(session_secret)
+  end
+end
+
 enable :sessions
-set :session_secret, ENV['SESSION_SECRET'] || SecureRandom.alphanumeric(100)
+set :session_secret, session_secret
 set :session_options, {
   expire_after: 60 * 60 * 24 * 365
 }
