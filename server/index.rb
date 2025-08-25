@@ -146,7 +146,7 @@ post '/upload_edited' do
   data_uri = params[:annotatedImage]
   filename = params[:filename]
 
-  data = Base64.decode64(data_uri['data:image/png;base64'.length .. -1])
+  data = Base64.decode64(data_uri['data:image/png;base64'.length..-1])
 
   dest_file = write_file(filename, data)
 
@@ -154,11 +154,11 @@ post '/upload_edited' do
 end
 
 def write_file(filename, data)
-    dest_file = gen_filename(filename, data)
-    File.open(File.join(settings.options['pics_dir'], dest_file), 'wb') do |f|
-      f.write data
-    end
-    return dest_file
+  dest_file = gen_filename(filename, data)
+  File.open(File.join(settings.options['pics_dir'], dest_file), 'wb') do |f|
+    f.write data
+  end
+  return dest_file
 end
 
 post '/upload' do
