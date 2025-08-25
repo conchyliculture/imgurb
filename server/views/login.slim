@@ -1,0 +1,15 @@
+doctype html
+html lang="en"
+  head
+    meta charset='UTF-8'
+    title Auth
+    link rel="stylesheet" href="/style.css"
+  body
+    form action="/login" method="post"
+      label for="password"
+        | Password:
+      input type="password" id="password" name="password" autofocus="true"
+      input type="hidden" name="redir" value="#{@redir}"
+      button type="submit"
+        | Log In
+

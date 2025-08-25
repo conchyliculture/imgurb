@@ -2,9 +2,29 @@
 
 Encoding.default_external = Encoding::UTF_8
 
+require 'base64'
 require 'digest'
 require 'json'
+require "rack"
+require 'securerandom'
 require 'sinatra'
+require 'slim'
+
+enable :sessions
+set :session_secret, ENV['SESSION_SECRET'] || SecureRandom.alphanumeric(100)
+set :session_options, {
+  expire_after: 60 * 60 * 24 * 365
+}
+
+helpers do
+  def logged_in?
+    session[:logged_in] == true
+  end
+
+  def protected!(redir)
+    redirect "/login?redir=#{redir}" unless logged_in?
+  end
+end
 
 def dohash(pwd)
   hex = pwd.strip()
@@ -92,9 +112,58 @@ get '/p/:pic' do
   end
 end
 
+def get_mime(filepath)
+  output = `file -b --mime "#{filepath}"`
+  return output.split('; ')[0]
+end
+
+def image?(filepath)
+  return get_mime(filepath).start_with?('image/')
+end
+
+get '/e/:pic' do
+  protected!("/e/#{params[:pic]}")
+  halt 404 unless params[:pic]
+  path = File.join(settings.options['pics_dir'], params[:pic])
+  if File.exist?(path)
+    if image?(path)
+      slim :edit
+    else
+      return "#{path} is not an image"
+    end
+  else
+    halt 404
+  end
+end
+
+get '/login' do
+  @redir = params[:redir]
+  slim :login
+end
+
+post '/upload_edited' do
+  protected!('')
+  data_uri = params[:annotatedImage]
+  filename = params[:filename]
+
+  data = Base64.decode64(data_uri['data:image/png;base64'.length .. -1])
+
+  dest_file = write_file(filename, data)
+
+  redirect "/p/#{dest_file}"
+end
+
+def write_file(filename, data)
+    dest_file = gen_filename(filename, data)
+    File.open(File.join(settings.options['pics_dir'], dest_file), 'wb') do |f|
+      f.write data
+    end
+    return dest_file
+end
+
 post '/upload' do
   if params[:secret]
-    if params[:secret] != settings.options['secret']
+    unless Rack::Utils.secure_compare(params[:secret], settings.options['secret'])
       halt 403, 'bad password'
     end
   else
@@ -105,13 +174,30 @@ post '/upload' do
     file = params[:file][:tempfile]
     data = file.read()
 
-    dest_file = gen_filename(filename, data)
-    File.open(File.join(settings.options['pics_dir'], dest_file), 'wb') do |f|
-      f.write data
-    end
+    write_file(filename, data)
+
     json_msg "#{settings.options['my_url']}/p/#{dest_file}"
   else
     json_error 'You have to choose a file'
+  end
+end
+
+post '/login' do
+  submitted_password = params['password']
+  submitted_hash = dohash(submitted_password)
+
+  redirect_to = params[:redir]
+
+  if Rack::Utils.secure_compare(submitted_hash, settings.options['secret'])
+    # Correct password
+    session[:logged_in] = true
+
+    session[:error] = nil
+    redirect redirect_to
+  else
+    # Incorrect password
+    session[:error] = "Invalid password. Please try again."
+    redirect '/login'
   end
 end
 

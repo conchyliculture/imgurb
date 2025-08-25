@@ -1,0 +1,3 @@
+task :tests do
+  ruby "tests/tests.rb"
+end
