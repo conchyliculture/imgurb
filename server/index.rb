@@ -22,7 +22,7 @@ helpers do
   end
 
   def protected!(redir)
-    redirect "/login?redir=#{redir}" unless logged_in?
+    redirect "#{settings.options['my_url']}/login?redir=#{redir}" unless logged_in?
   end
 end
 
@@ -150,7 +150,7 @@ post '/upload_edited' do
 
   dest_file = write_file(filename, data)
 
-  redirect "/p/#{dest_file}"
+  redirect "#{settings.options['my_url']}/p/#{dest_file}"
 end
 
 def write_file(filename, data)
@@ -193,11 +193,11 @@ post '/login' do
     session[:logged_in] = true
 
     session[:error] = nil
-    redirect redirect_to
+    redirect "#{settings.options['my_url']}#{redirect_to}"
   else
     # Incorrect password
     session[:error] = "Invalid password. Please try again."
-    redirect '/login'
+    redirect "#{settings.options['my_url']}/login"
   end
 end
 
