@@ -11,6 +11,7 @@ require 'sinatra'
 require 'slim'
 
 session_secret = ENV['SESSION_SECRET']
+set :protection, :except => [:http_origin] # Annoying
 unless session_secret
   secret_file = 'session_secret'
   if File.exist?(secret_file)
