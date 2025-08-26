@@ -5,7 +5,7 @@ html lang="en"
     title Auth
     link rel="stylesheet" href="/style.css"
   body
-    form action="/login" method="post"
+    form action="/login?redir=#{@redir}" method="post"
       label for="password"
         | Password:
       input type="password" id="password" name="password" autofocus="true"
