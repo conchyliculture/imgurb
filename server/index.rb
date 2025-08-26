@@ -185,7 +185,7 @@ post '/upload' do
     file = params[:file][:tempfile]
     data = file.read()
 
-    write_file(filename, data)
+    dest_file = write_file(filename, data)
 
     json_msg "#{settings.options['my_url']}/p/#{dest_file}"
   else
