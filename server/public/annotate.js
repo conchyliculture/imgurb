@@ -1,14 +1,18 @@
 const canvas = document.getElementById('imageCanvas');
 const ctx = canvas.getContext('2d');
+const textInput = document.getElementById('textInput'); // New
+const addTextBtn = document.getElementById('addTextBtn'); // New
+const fontSizeSelect = document.getElementById('fontSizeSelect'); // New
 const drawArrowBtn = document.getElementById('drawArrow');
 const drawLineBtn = document.getElementById('drawLine');
 const drawRectangleBtn = document.getElementById('drawRectangle');
 const drawBlackBoxBtn = document.getElementById('drawBlackBox');
+const undoBtn = document.getElementById('undoBtn'); // New
 const clearCanvasBtn = document.getElementById('clearCanvas');
 const uploadImageBtn = document.getElementById('uploadImage');
 
 let currentImage = new Image();
-let drawingMode = null; // 'arrow', 'line', 'rectangle', 'blackbox'
+let drawingMode = null; // 'arrow', 'line', 'rectangle', 'blackbox', 'text'
 let isDrawing = false;
 let startX, startY;
 let annotations = []; // Stores all annotations
@@ -54,7 +58,7 @@ function loadImageFromURL() {
 
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (currentImage.src) {
+    if (currentImage.src && currentImage.complete) {
         ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
     }
 
@@ -78,6 +82,19 @@ function redrawCanvas() {
         } else if (annotation.type === 'blackbox') {
             ctx.fillStyle = annotation.color;
             ctx.fillRect(annotation.startX, annotation.startY, annotation.width, annotation.height);
+        } else if (annotation.type === 'text') { // New text rendering
+            ctx.font = `${annotation.fontSize} Arial`; // Example font
+            ctx.fillStyle = annotation.color; // Red
+            ctx.shadowColor = annotation.shadowColor; // Black shadow
+            ctx.shadowOffsetX = annotation.shadowOffsetX;
+            ctx.shadowOffsetY = annotation.shadowOffsetY;
+            ctx.shadowBlur = annotation.shadowBlur;
+            ctx.fillText(annotation.text, annotation.x, annotation.y);
+            // Reset shadow for subsequent drawings
+            ctx.shadowColor = 'transparent';
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.shadowBlur = 0;
         }
     });
 }
@@ -90,18 +107,61 @@ function drawArrowhead(ctx, fromX, fromY, toX, toY) {
     ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
 }
 
+// Event listener for adding text
+addTextBtn.addEventListener('click', () => {
+    if (!currentImage.src) {
+        alert("Please load an image first.");
+        return;
+    }
+    const text = textInput.value.trim();
+    if (!text) {
+        alert("Please enter some text to add.");
+        return;
+    }
+    drawingMode = 'text';
+    canvas.style.cursor = 'text'; // Change cursor for text mode
+});
 
 canvas.addEventListener('mousedown', (e) => {
-    if (drawingMode && currentImage.src) {
+    if (!currentImage.src || !currentImage.complete) {
+        return; // Only allow drawing on a loaded image
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+
+    if (drawingMode === 'text') {
+        const text = textInput.value.trim();
+        if (text) {
+            annotations.push({
+                type: 'text',
+                x: startX,
+                y: startY,
+                text: text,
+                fontSize: fontSizeSelect.value,
+                color: 'red',
+                shadowColor: 'black',
+                shadowOffsetX: 2,
+                shadowOffsetY: 2,
+                shadowBlur: 3
+            });
+            redrawCanvas();
+            drawingMode = null; // Exit text mode after placing
+            canvas.style.cursor = 'crosshair'; // Reset cursor
+            textInput.value = ''; // Clear text input after placing
+        }
+        // If drawingMode is text but no text, don't start drawing
+        return;
+    }
+
+    if (drawingMode) { // For other drawing modes (lines, shapes)
         isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        startX = e.clientX - rect.left;
-        startY = e.clientY - rect.top;
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (!isDrawing || !drawingMode || !currentImage.src) return;
+    if (!isDrawing || !drawingMode || !currentImage.src || !currentImage.complete || drawingMode === 'text') return;
 
     const rect = canvas.getBoundingClientRect();
     const currentX = e.clientX - rect.left;
@@ -136,7 +196,7 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mouseup', (e) => {
-    if (isDrawing && drawingMode && currentImage.src) {
+    if (isDrawing && drawingMode && currentImage.src && currentImage.complete && drawingMode !== 'text') {
         isDrawing = false;
         const rect = canvas.getBoundingClientRect();
         const endX = e.clientX - rect.left;
@@ -177,10 +237,18 @@ canvas.addEventListener('mouseup', (e) => {
     }
 });
 
-drawArrowBtn.addEventListener('click', () => drawingMode = 'arrow');
-drawLineBtn.addEventListener('click', () => drawingMode = 'line');
-drawRectangleBtn.addEventListener('click', () => drawingMode = 'rectangle');
-drawBlackBoxBtn.addEventListener('click', () => drawingMode = 'blackbox');
+drawArrowBtn.addEventListener('click', () => { drawingMode = 'arrow'; canvas.style.cursor = 'crosshair'; });
+drawLineBtn.addEventListener('click', () => { drawingMode = 'line'; canvas.style.cursor = 'crosshair'; });
+drawRectangleBtn.addEventListener('click', () => { drawingMode = 'rectangle'; canvas.style.cursor = 'crosshair'; });
+drawBlackBoxBtn.addEventListener('click', () => { drawingMode = 'blackbox'; canvas.style.cursor = 'crosshair'; });
+
+// Undo function
+undoBtn.addEventListener('click', () => {
+    if (annotations.length > 0) {
+        annotations.pop(); // Remove the last annotation
+        redrawCanvas(); // Redraw the canvas without it
+    }
+});
 
 clearCanvasBtn.addEventListener('click', () => {
     annotations = [];
@@ -188,7 +256,7 @@ clearCanvasBtn.addEventListener('click', () => {
 });
 
 uploadImageBtn.addEventListener('click', () => {
-    if (!currentImage.src) {
+    if (!currentImage.src || !currentImage.complete) {
         alert("Please load an image first.");
         return;
     }

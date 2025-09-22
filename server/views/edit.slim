@@ -9,12 +9,22 @@ html lang="en"
     h1 Image Annotator
 
 
+    #textControls
+      input type="text" id="textInput" placeholder="Enter text to add..."
+      button id="addTextBtn" Add Text
+      select id="fontSizeSelect"
+        option value="16px" 16px
+        option value="24px" selected=true 24px
+        option value="32px" 32px
+        option value="48px" 48px
+
     #controls
       button id="drawArrow" Draw Arrow
       button id="drawLine" Draw Line
       button id="drawRectangle" Draw Red Rectangle
       button id="drawBlackBox" Draw Black Box
-      button id="clearCanvas" Clear Annotations
+      button id="undoBtn" Undo
+      button id="clearCanvas" Clear All
       button id="uploadImage" Upload Annotated Image
 
     canvas id="imageCanvas"
