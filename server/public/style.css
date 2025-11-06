@@ -5,15 +5,33 @@ body {
   align-items: center;
   margin-top: 20px;
 }
-#controls {
+#controls, #textControls {
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+#imageLoadControls {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: center;
+}
+#imageURL, #textInput {
+  width: 400px;
+  padding: 8px;
+  margin-right: 5px;
+}
+#textInput {
+  width: 200px;
 }
 canvas {
   border: 1px solid #ccc;
-  cursor: crosshair;
+  cursor: default; /* Default cursor for selection */
 }
 button {
   margin: 5px;
   padding: 8px 15px;
   cursor: pointer;
+}
+.selected-tool {
+  background-color: #e0e0e0;
 }

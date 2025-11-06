@@ -3,19 +3,23 @@ const ctx = canvas.getContext('2d');
 const textInput = document.getElementById('textInput'); // New
 const addTextBtn = document.getElementById('addTextBtn'); // New
 const fontSizeSelect = document.getElementById('fontSizeSelect'); // New
+const selectToolBtn = document.getElementById('selectTool'); // New
 const drawArrowBtn = document.getElementById('drawArrow');
 const drawLineBtn = document.getElementById('drawLine');
 const drawRectangleBtn = document.getElementById('drawRectangle');
 const drawBlackBoxBtn = document.getElementById('drawBlackBox');
-const undoBtn = document.getElementById('undoBtn'); // New
+const undoBtn = document.getElementById('undoBtn');
 const clearCanvasBtn = document.getElementById('clearCanvas');
 const uploadImageBtn = document.getElementById('uploadImage');
 
 let currentImage = new Image();
-let drawingMode = null; // 'arrow', 'line', 'rectangle', 'blackbox', 'text'
-let isDrawing = false;
+let activeTool = 'select'; // 'select', 'arrow', 'line', 'rectangle', 'blackbox', 'text'
+let isDrawing = false; // For new annotations
+let isDragging = false; // For moving existing annotations
 let startX, startY;
-let annotations = []; // Stores all annotations
+let annotations = [];
+let selectedAnnotation = null;
+let dragOffsetX, dragOffsetY; // Offset from mouse click to annotation's origin
 
 // Set initial canvas size (adjust as needed)
 canvas.width = 800;
@@ -26,22 +30,8 @@ function loadImageFromURL() {
     console.log('image path: '+imagepath);
     currentImagr = new Image();
     currentImage.onload = () => {
-//        const aspectRatio = currentImage.width / currentImage.height;
-//        const maxWidth = 800;
-//        const maxHeight = 600;
-//
-//        if (currentImage.width > maxWidth || currentImage.height > maxHeight) {
-//            if (currentImage.width / maxWidth > currentImage.height / maxHeight) {
-//                canvas.width = maxWidth;
-//                canvas.height = maxWidth / aspectRatio;
-//            } else {
-//                canvas.height = maxHeight;
-//                canvas.width = maxHeight * aspectRatio;
-//            }
-//        } else {
-            canvas.width = currentImage.width;
-            canvas.height = currentImage.height;
-//        }
+        canvas.width = currentImage.width;
+        canvas.height = currentImage.height;
 
         annotations = [];
         redrawCanvas();
@@ -56,6 +46,29 @@ function loadImageFromURL() {
     currentImage.src = '/p/'+imagepath;
 }
 
+function setActiveTool(tool) {
+    activeTool = tool;
+    // Reset canvas cursor based on tool
+    if (tool === 'text') {
+        canvas.style.cursor = 'text';
+    } else if (tool === 'select') {
+        canvas.style.cursor = 'default';
+    } else {
+        canvas.style.cursor = 'crosshair';
+    }
+    // Highlight active tool button
+    document.querySelectorAll('#controls button').forEach(btn => {
+        btn.classList.remove('selected-tool');
+    });
+    document.querySelectorAll('#textControls button').forEach(btn => {
+        btn.classList.remove('selected-tool');
+    });
+    const activeBtn = document.getElementById(`${tool}Tool`) || document.getElementById(tool === 'text' ? 'addTextBtn' : tool);
+    if (activeBtn) {
+      activeBtn.classList.add('selected-tool');
+    }
+}
+
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (currentImage.src && currentImage.complete) {
@@ -63,7 +76,17 @@ function redrawCanvas() {
     }
 
     annotations.forEach(annotation => {
-        ctx.beginPath();
+        ctx.beginPath(); // Start a new path for each annotation
+
+        // Apply highlight if selected
+        if (annotation === selectedAnnotation) {
+            ctx.save(); // Save current context state
+            ctx.strokeStyle = 'blue'; // Highlight color
+            ctx.lineWidth = 4;
+            ctx.setLineDash([5, 5]); // Dashed border for selection
+        } else {
+            ctx.setLineDash([]); // No dash for unselected
+        }
 
         if (annotation.type === 'line' || annotation.type === 'arrow') {
             ctx.strokeStyle = annotation.color;
@@ -107,20 +130,12 @@ function drawArrowhead(ctx, fromX, fromY, toX, toY) {
     ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
 }
 
-// Event listener for adding text
-addTextBtn.addEventListener('click', () => {
-    if (!currentImage.src) {
-        alert("Please load an image first.");
-        return;
-    }
-    const text = textInput.value.trim();
-    if (!text) {
-        alert("Please enter some text to add.");
-        return;
-    }
-    drawingMode = 'text';
-    canvas.style.cursor = 'text'; // Change cursor for text mode
-});
+addTextBtn.addEventListener('click', () => setActiveTool('text'));
+selectToolBtn.addEventListener('click', () => setActiveTool('select')); // New tool button listener
+drawArrowBtn.addEventListener('click', () => setActiveTool('arrow'));
+drawLineBtn.addEventListener('click', () => setActiveTool('line'));
+drawRectangleBtn.addEventListener('click', () => setActiveTool('rectangle'));
+drawBlackBoxBtn.addEventListener('click', () => setActiveTool('blackbox'));
 
 canvas.addEventListener('mousedown', (e) => {
     if (!currentImage.src || !currentImage.complete) {
@@ -131,7 +146,60 @@ canvas.addEventListener('mousedown', (e) => {
     startX = e.clientX - rect.left;
     startY = e.clientY - rect.top;
 
-    if (drawingMode === 'text') {
+    selectedAnnotation = null; // Deselect any previously selected annotation
+    isDrawing = false; // Assume not drawing new element initially
+    isDragging = false; // Assume not dragging initially
+    redrawCanvas(); // Deselect visually
+
+    if (activeTool === 'select') {
+        // Check if we clicked on an existing annotation
+        for (let i = annotations.length - 1; i >= 0; i--) { // Iterate backwards to select top-most element
+            const ann = annotations[i];
+            // Simple hit testing (can be made more robust)
+            if (ann.type === 'rectangle' || ann.type === 'blackbox') {
+                if (startX >= ann.startX && startX <= (ann.startX + ann.width) &&
+                    startY >= ann.startY && startY <= (ann.startY + ann.height)) {
+                    selectedAnnotation = ann;
+                    isDragging = true;
+                    dragOffsetX = startX - ann.startX;
+                    dragOffsetY = startY - ann.startY;
+                    redrawCanvas();
+                    return; // Found and started dragging
+                }
+            } else if (ann.type === 'line' || ann.type === 'arrow') {
+                // More complex hit testing for lines/arrows - for simplicity, we'll use a bounding box
+                const minX = Math.min(ann.startX, ann.endX);
+                const maxX = Math.max(ann.startX, ann.endX);
+                const minY = Math.min(ann.startY, ann.endY);
+                const maxY = Math.max(ann.startY, ann.endY);
+                // Add a small buffer for easier clicking on thin lines
+                const buffer = 5;
+                if (startX >= minX - buffer && startX <= maxX + buffer &&
+                    startY >= minY - buffer && startY <= maxY + buffer) {
+                    selectedAnnotation = ann;
+                    isDragging = true;
+                    dragOffsetX = startX - ann.startX; // Store offsets relative to start point
+                    dragOffsetY = startY - ann.startY;
+                    redrawCanvas();
+                    return;
+                }
+            } else if (ann.type === 'text') {
+                // Rough hit testing for text (needs more accurate bounding box calculation for real apps)
+                ctx.font = `${ann.fontSize} Arial`;
+                const textWidth = ctx.measureText(ann.text).width;
+                const textHeight = parseInt(ann.fontSize, 10); // Estimate height
+                if (startX >= ann.x && startX <= (ann.x + textWidth) &&
+                    startY >= ann.y - textHeight && startY <= ann.y) { // Text drawn from baseline
+                    selectedAnnotation = ann;
+                    isDragging = true;
+                    dragOffsetX = startX - ann.x;
+                    dragOffsetY = startY - ann.y;
+                    redrawCanvas();
+                    return;
+                }
+            }
+        }
+    } else if (activeTool === 'text') {
         const text = textInput.value.trim();
         if (text) {
             annotations.push({
@@ -147,56 +215,82 @@ canvas.addEventListener('mousedown', (e) => {
                 shadowBlur: 3
             });
             redrawCanvas();
-            drawingMode = null; // Exit text mode after placing
-            canvas.style.cursor = 'crosshair'; // Reset cursor
-            textInput.value = ''; // Clear text input after placing
+            textInput.value = '';
         }
-        // If drawingMode is text but no text, don't start drawing
-        return;
-    }
-
-    if (drawingMode) { // For other drawing modes (lines, shapes)
+    } else { // For drawing new shapes/lines
         isDrawing = true;
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (!isDrawing || !drawingMode || !currentImage.src || !currentImage.complete || drawingMode === 'text') return;
+    if (!currentImage.src || !currentImage.complete) return;
 
     const rect = canvas.getBoundingClientRect();
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
 
-    redrawCanvas();
-
-    ctx.beginPath();
-
-    if (drawingMode === 'line' || drawingMode === 'arrow') {
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(currentX, currentY);
-        if (drawingMode === 'arrow') {
-            drawArrowhead(ctx, startX, startY, currentX, currentY);
+    if (isDragging && selectedAnnotation) {
+        // Update position based on mouse movement
+        if (selectedAnnotation.type === 'rectangle' || selectedAnnotation.type === 'blackbox') {
+            selectedAnnotation.startX = currentX - dragOffsetX;
+            selectedAnnotation.startY = currentY - dragOffsetY;
+        } else if (selectedAnnotation.type === 'line' || selectedAnnotation.type === 'arrow') {
+            const deltaX = currentX - startX;
+            const deltaY = currentY - startY;
+            selectedAnnotation.startX += deltaX;
+            selectedAnnotation.startY += deltaY;
+            selectedAnnotation.endX += deltaX;
+            selectedAnnotation.endY += deltaY;
+            startX = currentX; // Update start for continuous dragging
+            startY = currentY;
+        } else if (selectedAnnotation.type === 'text') {
+            selectedAnnotation.x = currentX - dragOffsetX;
+            selectedAnnotation.y = currentY - dragOffsetY;
         }
-        ctx.stroke();
-    } else if (drawingMode === 'rectangle') {
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        const width = currentX - startX;
-        const height = currentY - startY;
-        ctx.rect(startX, startY, width, height);
-        ctx.stroke();
-    } else if (drawingMode === 'blackbox') {
-        ctx.fillStyle = 'black';
-        const width = currentX - startX;
-        const height = currentY - startY;
-        ctx.fillRect(startX, startY, width, height);
+        redrawCanvas();
+        return;
+    }
+
+    if (isDrawing && activeTool !== 'select' && activeTool !== 'text') {
+        redrawCanvas();
+
+        ctx.beginPath();
+        if (activeTool === 'line' || activeTool === 'arrow') {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(currentX, currentY);
+            if (activeTool === 'arrow') {
+                drawArrowhead(ctx, startX, startY, currentX, currentY);
+            }
+            ctx.stroke();
+        } else if (activeTool === 'rectangle') {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            const width = currentX - startX;
+            const height = currentY - startY;
+            ctx.rect(startX, startY, width, height);
+            ctx.stroke();
+        } else if (activeTool === 'blackbox') {
+            ctx.fillStyle = 'black';
+            const width = currentX - startX;
+            const height = currentY - startY;
+            ctx.fillRect(startX, startY, width, height);
+        }
     }
 });
 
 canvas.addEventListener('mouseup', (e) => {
-    if (isDrawing && drawingMode && currentImage.src && currentImage.complete && drawingMode !== 'text') {
+    if (!currentImage.src || !currentImage.complete) return;
+
+    if (isDragging) {
+        isDragging = false;
+        selectedAnnotation = null; // Deselect after drag
+        redrawCanvas(); // Redraw without highlight
+        return;
+    }
+
+    if (isDrawing && activeTool !== 'select' && activeTool !== 'text') {
         isDrawing = false;
         const rect = canvas.getBoundingClientRect();
         const endX = e.clientX - rect.left;
@@ -205,28 +299,28 @@ canvas.addEventListener('mouseup', (e) => {
         const width = endX - startX;
         const height = endY - startY;
 
-        if (drawingMode === 'line') {
+        if (activeTool === 'line') {
             annotations.push({
                 type: 'line',
                 startX, startY, endX, endY,
                 color: 'red',
                 lineWidth: 2
             });
-        } else if (drawingMode === 'arrow') {
+        } else if (activeTool === 'arrow') {
             annotations.push({
                 type: 'arrow',
                 startX, startY, endX, endY,
                 color: 'red',
                 lineWidth: 2
             });
-        } else if (drawingMode === 'rectangle') {
+        } else if (activeTool === 'rectangle') {
             annotations.push({
                 type: 'rectangle',
                 startX, startY, width, height,
                 color: 'red',
                 lineWidth: 2
             });
-        } else if (drawingMode === 'blackbox') {
+        } else if (activeTool === 'blackbox') {
             annotations.push({
                 type: 'blackbox',
                 startX, startY, width, height,
@@ -237,21 +331,18 @@ canvas.addEventListener('mouseup', (e) => {
     }
 });
 
-drawArrowBtn.addEventListener('click', () => { drawingMode = 'arrow'; canvas.style.cursor = 'crosshair'; });
-drawLineBtn.addEventListener('click', () => { drawingMode = 'line'; canvas.style.cursor = 'crosshair'; });
-drawRectangleBtn.addEventListener('click', () => { drawingMode = 'rectangle'; canvas.style.cursor = 'crosshair'; });
-drawBlackBoxBtn.addEventListener('click', () => { drawingMode = 'blackbox'; canvas.style.cursor = 'crosshair'; });
-
 // Undo function
 undoBtn.addEventListener('click', () => {
     if (annotations.length > 0) {
         annotations.pop(); // Remove the last annotation
+        selectedAnnotation = null; // Clear selection if the undone item was selected
         redrawCanvas(); // Redraw the canvas without it
     }
 });
 
 clearCanvasBtn.addEventListener('click', () => {
     annotations = [];
+    selectedAnnotation = null; // Clear selection
     redrawCanvas();
 });
 
@@ -272,7 +363,8 @@ uploadImageBtn.addEventListener('click', () => {
         body: formData
     })
     .then(data => {
-        alert("Upload successful");
+        console.log('Upload successful:', data);
+        alert('Annotated image uploaded successfully!');
         window.setTimeout(function(){
             window.location.href = data.url;
 
@@ -284,5 +376,7 @@ uploadImageBtn.addEventListener('click', () => {
     });
 });
 
+// Initialize with 'select' tool active
+setActiveTool('select');
 redrawCanvas();
 loadImageFromURL();
